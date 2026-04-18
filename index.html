@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Glass 3D PDF Final</title>
+<title>Glass 3D Light Mode</title>
 
 <style>
 *{
@@ -20,10 +20,11 @@ body{
     overflow:hidden;
     font-family:sans-serif;
 
+    /* 🌞 BACKGROUND TERANG */
     background:
-        radial-gradient(circle at 20% 20%, rgba(0,255,255,0.15), transparent 40%),
-        radial-gradient(circle at 80% 70%, rgba(0,100,255,0.15), transparent 40%),
-        linear-gradient(135deg,#020617,#000);
+        radial-gradient(circle at 20% 20%, rgba(0,150,255,0.15), transparent 40%),
+        radial-gradient(circle at 80% 70%, rgba(0,255,200,0.15), transparent 40%),
+        linear-gradient(135deg,#ffffff,#f3f6fb);
 }
 
 /* SCENE */
@@ -42,75 +43,78 @@ body{
     width:95%;
     height:90vh;
     position:relative;
-    border-radius:22px;
+    border-radius:24px;
     transform-style:preserve-3d;
     cursor:grab;
 }
 
-/* FACE UMUM */
+/* FACE */
 .face{
     position:absolute;
     width:100%;
     height:100%;
-    border-radius:22px;
+    border-radius:24px;
     overflow:hidden;
     backface-visibility:hidden;
 }
 
-/* FRONT (PDF) */
+/* FRONT (LIGHT GLASS) */
 .front{
-    background:rgba(20,40,80,0.35);
+    background:rgba(255,255,255,0.6);
     backdrop-filter:blur(18px);
     -webkit-backdrop-filter:blur(18px);
 
-    border:1px solid rgba(0,255,255,0.3);
+    border:1px solid rgba(255,255,255,0.7);
 
     box-shadow:
-        0 0 40px rgba(0,255,255,0.15),
-        inset 0 0 30px rgba(255,255,255,0.05),
-        0 20px 60px rgba(0,0,0,0.8);
+        0 10px 40px rgba(0,0,0,0.15),
+        inset 0 0 20px rgba(255,255,255,0.6);
 }
 
-/* BACK (KOSONG GLASS) */
+/* BACK (KOSONG) */
 .back{
     transform: rotateY(180deg);
 
-    background:rgba(10,20,40,0.25);
+    background:rgba(255,255,255,0.4);
     backdrop-filter:blur(25px);
-    -webkit-backdrop-filter:blur(25px);
 
-    border:1px solid rgba(255,255,255,0.08);
+    border:1px solid rgba(255,255,255,0.6);
 
     box-shadow:
-        inset 0 0 30px rgba(255,255,255,0.05),
-        0 0 30px rgba(0,0,0,0.6);
+        inset 0 0 20px rgba(255,255,255,0.5);
 }
 
-/* EDGE LIGHT */
+/* 🔥 EDGE DEPTH (KETEBALAN CARD) */
 .card::before{
     content:"";
     position:absolute;
-    inset:-2px;
-    border-radius:24px;
-    background:linear-gradient(120deg, transparent, #0ff, transparent);
-    opacity:.25;
-    filter:blur(12px);
+    inset:-3px;
+    border-radius:26px;
+    background:linear-gradient(
+        to right,
+        rgba(0,0,0,0.15),
+        transparent 20%,
+        transparent 80%,
+        rgba(0,0,0,0.15)
+    );
+    opacity:.2;
+    filter:blur(6px);
 }
 
-/* DEPTH EDGE */
+/* ✨ SIDE THICK EFFECT */
 .card::after{
     content:"";
     position:absolute;
     inset:0;
-    border-radius:22px;
+    border-radius:24px;
     background:linear-gradient(
-        to right,
-        rgba(255,255,255,0.15),
-        transparent 20%,
-        transparent 80%,
-        rgba(255,255,255,0.15)
+        to bottom,
+        rgba(255,255,255,0.8),
+        transparent 40%,
+        transparent 60%,
+        rgba(0,0,0,0.1)
     );
-    opacity:.2;
+    opacity:.4;
     pointer-events:none;
 }
 
@@ -128,7 +132,7 @@ body{
     width:6px;
 }
 #pdf-container::-webkit-scrollbar-thumb{
-    background:linear-gradient(#0ff,#00f);
+    background:linear-gradient(#4facfe,#00f2fe);
     border-radius:10px;
 }
 
@@ -137,11 +141,10 @@ canvas{
     width:100%;
     margin-bottom:14px;
     border-radius:14px;
-    background:#111;
+    background:#fff;
 
     box-shadow:
-        0 10px 25px rgba(0,0,0,0.6),
-        0 0 15px rgba(0,255,255,0.2);
+        0 8px 20px rgba(0,0,0,0.15);
 }
 
 /* SHADOW */
@@ -151,9 +154,8 @@ canvas{
     width:65%;
     height:35px;
     left:17%;
-    background:black;
-    filter:blur(35px);
-    opacity:.5;
+    background:rgba(0,0,0,0.2);
+    filter:blur(30px);
 }
 </style>
 </head>
@@ -163,12 +165,10 @@ canvas{
 <div class="scene">
     <div class="card" id="card">
 
-        <!-- FRONT -->
         <div class="face front">
             <div id="pdf-container"></div>
         </div>
 
-        <!-- BACK KOSONG -->
         <div class="face back"></div>
 
         <div class="shadow" id="shadow"></div>
@@ -180,17 +180,13 @@ canvas{
 
 <script>
 
-/* =========================
-   CONFIG PDF
-========================= */
+/* PDF CONFIG */
 const url = "/api/pdf";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc =
 "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
-/* =========================
-   LOAD PDF (ANTI LAG)
-========================= */
+/* LOAD PDF */
 async function loadPDF(){
     const res = await fetch(url);
     const blob = await res.blob();
@@ -226,9 +222,7 @@ async function loadPDF(){
 
 loadPDF();
 
-/* =========================
-   SCROLL DETECTOR
-========================= */
+/* SCROLL DETECTOR */
 const container = document.getElementById("pdf-container");
 let isScrolling = false;
 
@@ -248,9 +242,7 @@ container.addEventListener("scroll", () => {
     }, 120);
 });
 
-/* =========================
-   ROTATE 360°
-========================= */
+/* ROTATE */
 const card = document.getElementById("card");
 const shadow = document.getElementById("shadow");
 
@@ -259,7 +251,6 @@ let startX, startY;
 let rotX = 0;
 let rotY = 0;
 
-/* MOUSE */
 card.addEventListener("mousedown",(e)=>{
     isDown = true;
     startX = e.clientX;
@@ -287,7 +278,6 @@ document.addEventListener("mousemove",(e)=>{
     updateTransform();
 });
 
-/* TOUCH */
 document.addEventListener("touchstart",(e)=>{
     isDown = true;
     startX = e.touches[0].clientX;
@@ -311,13 +301,11 @@ document.addEventListener("touchmove",(e)=>{
     updateTransform();
 }, { passive:true });
 
-/* APPLY */
 function updateTransform(){
     card.style.transform = `
         rotateX(${rotX}deg)
         rotateY(${rotY}deg)
     `;
-
     shadow.style.transform = `scale(${1 + Math.abs(rotY)/40})`;
 }
 
