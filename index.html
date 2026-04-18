@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>3D PDF PRO FINAL</title>
+<title>3D PDF SCROLL MULTI PAGE</title>
 
 <style>
 body{
@@ -12,13 +12,12 @@ body{
     display:flex;
     justify-content:center;
     align-items:center;
-    background:radial-gradient(circle at center,#020617,#000);
+    background:radial-gradient(circle,#020617,#000);
     overflow:hidden;
-    font-family:sans-serif;
 }
 
 .scene{
-    perspective:2000px;
+    perspective:2500px;
 }
 
 .card{
@@ -28,67 +27,56 @@ body{
     transform-style:preserve-3d;
     border-radius:20px;
     cursor:grab;
-    transition:transform 0.1s;
 }
 
-/* depth layer */
-.card::after{
-    content:"";
+.face{
     position:absolute;
-    inset:0;
-    border-radius:20px;
-    background:linear-gradient(120deg,rgba(0,255,255,0.15),transparent);
-    mix-blend-mode:screen;
-    pointer-events:none;
-}
-
-/* container */
-#zoom-wrapper{
     width:100%;
     height:100%;
-    transform-origin:center;
+    border-radius:20px;
+    overflow:hidden;
+    backface-visibility:hidden;
+
+    background:rgba(255,255,255,0.05);
+    backdrop-filter:blur(20px);
+    border:1px solid rgba(255,255,255,0.1);
 }
 
+/* container scroll */
 #pdf-container{
     width:100%;
     height:100%;
-    overflow:hidden;
+    overflow-y:auto;
     padding:10px;
 }
 
-/* halaman */
-.page{
-    margin-bottom:14px;
-    border-radius:12px;
-    overflow:hidden;
-    transform:translateZ(0);
-    transition:transform .25s, box-shadow .25s;
-}
-
-.page:hover{
-    transform:translateZ(40px) scale(1.02);
-    box-shadow:0 20px 40px rgba(0,0,0,0.6);
-}
-
-/* scrollbar modern */
-#pdf-container::-webkit-scrollbar{
-    width:6px;
-}
-#pdf-container::-webkit-scrollbar-thumb{
-    background:rgba(0,255,255,0.5);
+/* tiap halaman */
+#pdf-container canvas{
+    width:100%;
+    margin-bottom:12px;
     border-radius:10px;
 }
 
-/* shadow bawah */
+/* glow */
+.card::before{
+    content:"";
+    position:absolute;
+    inset:-50px;
+    background:radial-gradient(circle,rgba(0,255,255,.25),transparent);
+    filter:blur(60px);
+    z-index:-1;
+}
+
+/* shadow */
 .shadow{
     position:absolute;
-    bottom:-80px;
+    bottom:-70px;
     width:60%;
     height:40px;
     left:20%;
     background:black;
     filter:blur(40px);
-    opacity:.6;
+    opacity:.5;
 }
 </style>
 </head>
@@ -98,7 +86,7 @@ body{
 <div class="scene">
     <div class="card" id="card">
 
-        <div id="zoom-wrapper">
+        <div class="face front">
             <div id="pdf-container"></div>
         </div>
 
@@ -110,165 +98,131 @@ body{
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
 <script>
+
+/* =========================
+   🔥 URL API VERCEL (ANTI CORS)
+========================= */
 const url = "/api/pdf";
 
+/* worker */
 pdfjsLib.GlobalWorkerOptions.workerSrc =
 "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
 /* =========================
-   LOAD PDF MULTI PAGE
+   🔥 LOAD SEMUA HALAMAN PDF
 ========================= */
 async function loadPDF(){
-    const res = await fetch(url);
-    const buffer = await res.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({data:buffer}).promise;
+    try{
+        const response = await fetch(url);
 
-    const container = document.getElementById("pdf-container");
+        if(!response.ok){
+            throw new Error("HTTP ERROR: " + response.status);
+        }
 
-    for(let i=1;i<=pdf.numPages;i++){
-        const page = await pdf.getPage(i);
-        const viewport = page.getViewport({scale:1.5});
+        const blob = await response.blob();
+        const buffer = await blob.arrayBuffer();
 
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
+        const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
 
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
+        const container = document.getElementById("pdf-container");
 
-        const wrapper = document.createElement("div");
-        wrapper.className = "page";
+        for(let i = 1; i <= pdf.numPages; i++){
 
-        wrapper.appendChild(canvas);
-        container.appendChild(wrapper);
+            const page = await pdf.getPage(i);
 
-        await page.render({canvasContext:ctx,viewport}).promise;
+            const viewport = page.getViewport({ scale:1.5 });
+
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d");
+
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+
+            container.appendChild(canvas);
+
+            await page.render({
+                canvasContext: ctx,
+                viewport: viewport
+            }).promise;
+        }
+
+        console.log("TOTAL PAGE:", pdf.numPages);
+
+    }catch(e){
+        console.error("PDF ERROR:", e);
+        alert("PDF gagal dimuat! Cek console (F12)");
     }
 }
+
 loadPDF();
 
 /* =========================
-   ZOOM
+   🎯 DRAG ROTATE + FLOAT
 ========================= */
-const zoomWrapper = document.getElementById("zoom-wrapper");
-let scale = 1;
+const card = document.getElementById("card");
+const shadow = document.getElementById("shadow");
 
-document.getElementById("pdf-container").addEventListener("wheel",(e)=>{
-    if(e.ctrlKey){
-        e.preventDefault();
-        scale += e.deltaY * -0.001;
-        scale = Math.min(Math.max(0.6,scale),3);
-        zoomWrapper.style.transform = `scale(${scale})`;
-    }
-},{passive:false});
+let isDown = false;
+let startX = 0;
+let startY = 0;
 
-/* pinch */
-let startDist=0;
-document.addEventListener("touchmove",(e)=>{
-    if(e.touches.length===2){
-        e.preventDefault();
-        const dx=e.touches[0].clientX-e.touches[1].clientX;
-        const dy=e.touches[0].clientY-e.touches[1].clientY;
-        const dist=Math.sqrt(dx*dx+dy*dy);
+let rotX = 0;
+let rotY = 0;
+let t = 0;
 
-        if(startDist===0) startDist=dist;
-
-        scale += (dist-startDist)*0.003;
-        scale = Math.min(Math.max(0.6,scale),3);
-
-        zoomWrapper.style.transform = `scale(${scale})`;
-
-        startDist=dist;
-    }
-});
-document.addEventListener("touchend",()=>startDist=0);
-
-/* =========================
-   SCROLL PREMIUM
-========================= */
-const container = document.getElementById("pdf-container");
-
-let target=0,current=0,velocity=0;
-
-container.addEventListener("wheel",(e)=>{
-    if(!e.ctrlKey){
-        e.preventDefault();
-        velocity += e.deltaY * 0.12;
-    }
-},{passive:false});
-
-function animateScroll(){
-    velocity *= 0.85;
-    target += velocity;
-
-    target = Math.max(0,Math.min(target,container.scrollHeight-container.clientHeight));
-    current += (target-current)*0.1;
-
-    container.scrollTop = current;
-
-    requestAnimationFrame(animateScroll);
-}
-animateScroll();
-
-/* SNAP */
-let snapTimeout;
-container.addEventListener("wheel",()=>{
-    clearTimeout(snapTimeout);
-    snapTimeout=setTimeout(()=>{
-        const pages=document.querySelectorAll(".page");
-
-        let closest=0,min=999999;
-
-        pages.forEach(p=>{
-            const d=Math.abs(p.offsetTop-container.scrollTop);
-            if(d<min){
-                min=d;
-                closest=p.offsetTop;
-            }
-        });
-
-        target=closest;
-    },120);
-});
-
-/* =========================
-   3D ROTATE REAL FEEL
-========================= */
-const card=document.getElementById("card");
-const shadow=document.getElementById("shadow");
-
-let isDown=false;
-let rotX=0,rotY=0;
-let lastX=0,lastY=0;
-
-/* hanya rotate jika klik luar PDF */
+/* mouse */
 card.addEventListener("mousedown",(e)=>{
-    if(e.target.tagName==="CANVAS") return;
-    isDown=true;
-    lastX=e.clientX;
-    lastY=e.clientY;
+    isDown = true;
+    startX = e.clientX;
+    startY = e.clientY;
+    card.style.cursor = "grabbing";
 });
 
-document.addEventListener("mouseup",()=>isDown=false);
+document.addEventListener("mouseup",()=>{
+    isDown = false;
+    card.style.cursor = "grab";
+});
 
 document.addEventListener("mousemove",(e)=>{
     if(!isDown) return;
 
-    const dx=e.clientX-lastX;
-    const dy=e.clientY-lastY;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
 
-    rotY += dx*0.4;
-    rotX -= dy*0.4;
+    rotY += dx * 0.3;
+    rotX -= dy * 0.3;
 
-    lastX=e.clientX;
-    lastY=e.clientY;
+    startX = e.clientX;
+    startY = e.clientY;
 });
 
-/* animasi */
-let t=0;
-function animate(){
-    t+=0.02;
+/* touch */
+document.addEventListener("touchstart",(e)=>{
+    isDown = true;
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+});
 
-    const floatY=Math.sin(t)*12;
+document.addEventListener("touchend",()=> isDown=false);
+
+document.addEventListener("touchmove",(e)=>{
+    if(!isDown) return;
+
+    const dx = e.touches[0].clientX - startX;
+    const dy = e.touches[0].clientY - startY;
+
+    rotY += dx * 0.3;
+    rotX -= dy * 0.3;
+
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+});
+
+/* animasi float */
+function animate(){
+    t += 0.02;
+
+    const floatY = Math.sin(t) * 15;
 
     card.style.transform = `
         translateY(${floatY}px)
@@ -276,10 +230,11 @@ function animate(){
         rotateY(${rotY}deg)
     `;
 
-    shadow.style.transform = `scale(${1+Math.abs(rotY)/50})`;
+    shadow.style.transform = `scale(${1 + Math.abs(rotY)/40})`;
 
     requestAnimationFrame(animate);
 }
+
 animate();
 
 </script>
