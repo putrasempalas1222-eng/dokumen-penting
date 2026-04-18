@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3D PDF FIREBASE FIX FINAL</title>
+
+<style>
+body{
+    margin:0;
+    height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    background:radial-gradient(circle,#020617,#000);
+    overflow:hidden;
+}
+
+.scene{
+    perspective:2500px;
+}
+
+.card{
+    width:360px;
+    height:520px;
+    position:relative;
+    transform-style:preserve-3d;
+    border-radius:20px;
+    cursor:grab;
+}
+
+.face{
+    position:absolute;
+    width:100%;
+    height:100%;
+    border-radius:20px;
+    overflow:hidden;
+    backface-visibility:hidden;
+
+    background:rgba(255,255,255,0.05);
+    backdrop-filter:blur(20px);
+    border:1px solid rgba(255,255,255,0.1);
+}
+
+.back{
+    transform:rotateY(180deg);
+}
+
+canvas{
+    width:100%;
+    height:100%;
+}
+
+/* glow */
+.card::before{
+    content:"";
+    position:absolute;
+    inset:-50px;
+    background:radial-gradient(circle,rgba(0,255,255,.25),transparent);
+    filter:blur(60px);
+    z-index:-1;
+}
+
+/* shadow */
+.shadow{
+    position:absolute;
+    bottom:-70px;
+    width:60%;
+    height:40px;
+    left:20%;
+    background:black;
+    filter:blur(40px);
+    opacity:.5;
+}
+</style>
+</head>
+
+<body>
+
+<div class="scene">
+    <div class="card" id="card">
+
+        <div class="face front">
+            <canvas id="pdf-front"></canvas>
+        </div>
+
+        <div class="face back">
+            <canvas id="pdf-back"></canvas>
+        </div>
+
+        <div class="shadow" id="shadow"></div>
+
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+<script>
+
+/* =========================
+   🔥 LINK FIREBASE (PAKAI PUNYAMU)
+========================= */
+const url = "https://firebasestorage.googleapis.com/v0/b/play-integrity-2adpr7x4a8xhyex.firebasestorage.app/o/surat_penugasan_internal_M.%20Putra%20Ramadhani_162023023.pdf.pdf?alt=media&token=6821921c-b615-4b63-9b24-f895ccf67741";
+
+/* worker */
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+"https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+const front = document.getElementById("pdf-front").getContext("2d");
+const back = document.getElementById("pdf-back").getContext("2d");
+
+/* =========================
+   🔥 LOAD PDF (ANTI ERROR)
+========================= */
+async function loadPDF(){
+    try{
+        console.log("LOAD PDF:", url);
+
+        const response = await fetch(url, { mode: 'cors' });
+
+        if(!response.ok){
+            throw new Error("HTTP ERROR: " + response.status);
+        }
+
+        const blob = await response.blob();
+        const buffer = await blob.arrayBuffer();
+
+        const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+
+        console.log("TOTAL PAGE:", pdf.numPages);
+
+        const page1 = await pdf.getPage(1);
+
+        let page2 = null;
+        if(pdf.numPages >= 2){
+            page2 = await pdf.getPage(2);
+        }
+
+        const viewport = page1.getViewport({scale:1.6});
+
+        const c1 = document.getElementById("pdf-front");
+        const c2 = document.getElementById("pdf-back");
+
+        c1.width = viewport.width;
+        c1.height = viewport.height;
+        c2.width = viewport.width;
+        c2.height = viewport.height;
+
+        await page1.render({
+            canvasContext: front,
+            viewport
+        }).promise;
+
+        if(page2){
+            await page2.render({
+                canvasContext: back,
+                viewport
+            }).promise;
+        } else {
+            back.fillStyle = "#111";
+            back.fillRect(0,0,c2.width,c2.height);
+        }
+
+        console.log("PDF SUCCESS LOAD");
+
+    }catch(e){
+        console.error("PDF ERROR:", e);
+        alert("PDF gagal dimuat! Cek console (F12)");
+    }
+}
+loadPDF();
+
+/* =========================
+   🎯 DRAG + ROTATE + FLOAT
+========================= */
+const card = document.getElementById("card");
+const shadow = document.getElementById("shadow");
+
+let isDown = false;
+let startX = 0;
+let startY = 0;
+
+let rotX = 0;
+let rotY = 0;
+let t = 0;
+
+/* mouse */
+card.addEventListener("mousedown",(e)=>{
+    isDown = true;
+    startX = e.clientX;
+    startY = e.clientY;
+    card.style.cursor = "grabbing";
+});
+
+document.addEventListener("mouseup",()=>{
+    isDown = false;
+    card.style.cursor = "grab";
+});
+
+document.addEventListener("mousemove",(e)=>{
+    if(!isDown) return;
+
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+
+    rotY += dx * 0.3;
+    rotX -= dy * 0.3;
+
+    startX = e.clientX;
+    startY = e.clientY;
+});
+
+/* touch */
+document.addEventListener("touchstart",(e)=>{
+    isDown = true;
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+});
+
+document.addEventListener("touchend",()=> isDown=false);
+
+document.addEventListener("touchmove",(e)=>{
+    if(!isDown) return;
+
+    const dx = e.touches[0].clientX - startX;
+    const dy = e.touches[0].clientY - startY;
+
+    rotY += dx * 0.3;
+    rotX -= dy * 0.3;
+
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+});
+
+/* animation */
+function animate(){
+    t += 0.02;
+
+    const floatY = Math.sin(t) * 15;
+
+    card.style.transform = `
+        translateY(${floatY}px)
+        rotateX(${rotX}deg)
+        rotateY(${rotY}deg)
+    `;
+
+    shadow.style.transform = `scale(${1 + Math.abs(rotY)/40})`;
+
+    requestAnimationFrame(animate);
+}
+animate();
+
+</script>
+
+</body>
+</html>
