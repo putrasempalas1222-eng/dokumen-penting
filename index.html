@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>3D PDF FIREBASE FIX FINAL</title>
+<title>3D PDF SCROLL MULTI PAGE</title>
 
 <style>
 body{
@@ -42,13 +42,19 @@ body{
     border:1px solid rgba(255,255,255,0.1);
 }
 
-.back{
-    transform:rotateY(180deg);
-}
-
-canvas{
+/* container scroll */
+#pdf-container{
     width:100%;
     height:100%;
+    overflow-y:auto;
+    padding:10px;
+}
+
+/* tiap halaman */
+#pdf-container canvas{
+    width:100%;
+    margin-bottom:12px;
+    border-radius:10px;
 }
 
 /* glow */
@@ -81,11 +87,7 @@ canvas{
     <div class="card" id="card">
 
         <div class="face front">
-            <canvas id="pdf-front"></canvas>
-        </div>
-
-        <div class="face back">
-            <canvas id="pdf-back"></canvas>
+            <div id="pdf-container"></div>
         </div>
 
         <div class="shadow" id="shadow"></div>
@@ -98,7 +100,7 @@ canvas{
 <script>
 
 /* =========================
-   🔥 LINK FIREBASE (PAKAI PUNYAMU)
+   🔥 URL API VERCEL (ANTI CORS)
 ========================= */
 const url = "/api/pdf";
 
@@ -106,17 +108,12 @@ const url = "/api/pdf";
 pdfjsLib.GlobalWorkerOptions.workerSrc =
 "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
-const front = document.getElementById("pdf-front").getContext("2d");
-const back = document.getElementById("pdf-back").getContext("2d");
-
 /* =========================
-   🔥 LOAD PDF (ANTI ERROR)
+   🔥 LOAD SEMUA HALAMAN PDF
 ========================= */
 async function loadPDF(){
     try{
-        console.log("LOAD PDF:", url);
-
-        const response = await fetch(url, { mode: 'cors' });
+        const response = await fetch(url);
 
         if(!response.ok){
             throw new Error("HTTP ERROR: " + response.status);
@@ -127,51 +124,40 @@ async function loadPDF(){
 
         const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
 
-        console.log("TOTAL PAGE:", pdf.numPages);
+        const container = document.getElementById("pdf-container");
 
-        const page1 = await pdf.getPage(1);
+        for(let i = 1; i <= pdf.numPages; i++){
 
-        let page2 = null;
-        if(pdf.numPages >= 2){
-            page2 = await pdf.getPage(2);
-        }
+            const page = await pdf.getPage(i);
 
-        const viewport = page1.getViewport({scale:1.6});
+            const viewport = page.getViewport({ scale:1.5 });
 
-        const c1 = document.getElementById("pdf-front");
-        const c2 = document.getElementById("pdf-back");
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d");
 
-        c1.width = viewport.width;
-        c1.height = viewport.height;
-        c2.width = viewport.width;
-        c2.height = viewport.height;
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
 
-        await page1.render({
-            canvasContext: front,
-            viewport
-        }).promise;
+            container.appendChild(canvas);
 
-        if(page2){
-            await page2.render({
-                canvasContext: back,
-                viewport
+            await page.render({
+                canvasContext: ctx,
+                viewport: viewport
             }).promise;
-        } else {
-            back.fillStyle = "#111";
-            back.fillRect(0,0,c2.width,c2.height);
         }
 
-        console.log("PDF SUCCESS LOAD");
+        console.log("TOTAL PAGE:", pdf.numPages);
 
     }catch(e){
         console.error("PDF ERROR:", e);
         alert("PDF gagal dimuat! Cek console (F12)");
     }
 }
+
 loadPDF();
 
 /* =========================
-   🎯 DRAG + ROTATE + FLOAT
+   🎯 DRAG ROTATE + FLOAT
 ========================= */
 const card = document.getElementById("card");
 const shadow = document.getElementById("shadow");
@@ -232,7 +218,7 @@ document.addEventListener("touchmove",(e)=>{
     startY = e.touches[0].clientY;
 });
 
-/* animation */
+/* animasi float */
 function animate(){
     t += 0.02;
 
@@ -248,6 +234,7 @@ function animate(){
 
     requestAnimationFrame(animate);
 }
+
 animate();
 
 </script>
