@@ -1,6 +1,6 @@
 export default async function handler(req, res) {
   try {
-    const url = "https://firebasestorage.googleapis.com/v0/b/play-integrity-2adpr7x4a8xhyex.firebasestorage.app/o/surat_penugasan_internal_M.%20Putra%20Ramadhani_162023023.pdf.pdf?alt=media&token=6821921c-b615-4b63-9b24-f895ccf67741";
+    const url = "https://firebasestorage.googleapis.com/v0/b/play-integrity-2adpr7x4a8xhyex.firebasestorage.app/o/227634-teknologi-dan-kehidupan-masyarakat-7686df94.pdf?alt=media&token=da984a72-0294-46bb-b1ec-257620094ac4";
 
     const response = await fetch(url);
 
