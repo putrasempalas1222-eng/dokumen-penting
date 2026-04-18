@@ -76,16 +76,27 @@ body{
 #pdf-container{
     width:100%;
     height:100%;
-    overflow-y:auto;
     padding:14px;
-    scroll-behavior:smooth;
+}
+
+/* PDF MODE */
+.pdf-mode{
+    overflow-y:auto;
+}
+
+/* IMAGE MODE */
+.image-mode{
+    overflow:hidden;
+    display:flex;
+    justify-content:center;
+    align-items:center;
 }
 
 /* SCROLLBAR */
-#pdf-container::-webkit-scrollbar{
+.pdf-mode::-webkit-scrollbar{
     width:6px;
 }
-#pdf-container::-webkit-scrollbar-thumb{
+.pdf-mode::-webkit-scrollbar-thumb{
     background:linear-gradient(#4facfe,#00f2fe);
     border-radius:10px;
 }
@@ -99,7 +110,7 @@ canvas{
     box-shadow:0 8px 20px rgba(0,0,0,0.15);
 }
 
-/* IMAGE */
+/* IMAGE FULL */
 img{
     width:100%;
     height:100%;
@@ -165,9 +176,15 @@ async function loadFile(){
     const type = blob.type;
 
     if(type.includes("pdf")){
+        container.classList.remove("image-mode");
+        container.classList.add("pdf-mode");
+
         loadPDF(blob);
     }
     else if(type.startsWith("image")){
+        container.classList.remove("pdf-mode");
+        container.classList.add("image-mode");
+
         showImage(blob);
     }
     else{
@@ -176,7 +193,7 @@ async function loadFile(){
 }
 
 // =========================
-// PDF (SCROLL MULTI PAGE)
+// PDF (SCROLL)
 // =========================
 async function loadPDF(blob){
 
@@ -208,7 +225,7 @@ async function loadPDF(blob){
 }
 
 // =========================
-// IMAGE (FULL FIT)
+// IMAGE (FULL NO SCROLL)
 // =========================
 function showImage(blob){
 
