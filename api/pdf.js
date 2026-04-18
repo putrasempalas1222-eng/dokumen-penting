@@ -9,36 +9,55 @@ export default async function handler(req, res) {
 
     link = decodeURIComponent(link);
 
+    let bucket, filePath;
+
     /* =========================
-       🔥 AMBIL BAGIAN PENTING
+       🔥 FORMAT 1 (FULL URL)
     ========================= */
+    if (link.includes("/v0/b/")) {
 
-    // ambil setelah "/b/"
-    const match = link.match(/\/b\/(.*?)\/o\/(.*?)\?/);
+      const match = link.match(/\/b\/(.*?)\/o\/(.*?)\?/);
 
-    if (!match) {
-      return res.status(400).json({ error: "Format link tidak valid" });
+      if (!match) {
+        return res.status(400).json({ error: "Format link Firebase tidak valid" });
+      }
+
+      bucket = match[1];
+      filePath = decodeURIComponent(match[2]);
+
     }
 
-    const bucket = match[1]; // play-integrity-2adpr7x4a8xhyex.firebasestorage.app
-    const filePath = match[2]; // surat_penugasan_internal...
+    /* =========================
+       🔥 FORMAT 2 (SHORT LINK)
+    ========================= */
+    else if (link.includes(".firebasestorage.app/o/")) {
 
-    // decode nama file
-    const decodedPath = decodeURIComponent(filePath);
+      const match = link.match(/^(.*?)\/o\/(.*)$/);
+
+      if (!match) {
+        return res.status(400).json({ error: "Format short link tidak valid" });
+      }
+
+      bucket = match[1];
+      filePath = decodeURIComponent(match[2]);
+
+    }
+
+    else {
+      return res.status(400).json({ error: "Format link tidak dikenali" });
+    }
 
     /* =========================
-       🔥 BANGUN ULANG URL
+       🔥 BUILD URL FINAL
     ========================= */
+    const finalUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(filePath)}?alt=media`;
 
-    const cleanUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(decodedPath)}?alt=media`;
-
-    console.log("CLEAN URL:", cleanUrl);
+    console.log("FINAL URL:", finalUrl);
 
     /* =========================
        FETCH PDF
     ========================= */
-
-    const response = await fetch(cleanUrl);
+    const response = await fetch(finalUrl);
 
     if (!response.ok) {
       return res.status(500).json({
