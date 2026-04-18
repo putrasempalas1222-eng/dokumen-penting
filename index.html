@@ -181,7 +181,7 @@ canvas{
 <script>
 
 /* PDF CONFIG */
-const url = "/api/pdf";
+const url = "/api/pdf?link=" + encodeURIComponent(pdfUrl);
 
 pdfjsLib.GlobalWorkerOptions.workerSrc =
 "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
