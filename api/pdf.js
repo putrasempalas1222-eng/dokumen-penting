@@ -1,21 +1,44 @@
 export default async function handler(req, res) {
   try {
-    const url = "https://firebasestorage.googleapis.com/v0/b/play-integrity-2adpr7x4a8xhyex.firebasestorage.app/o/227634-teknologi-dan-kehidupan-masyarakat-7686df94.pdf?alt=media&token=da984a72-0294-46bb-b1ec-257620094ac4";
+    // ambil parameter link
+    const { link } = req.query;
 
+    // fallback kalau tidak ada link → pakai default
+    const defaultUrl = "";
+
+    const url = link ? decodeURIComponent(link) : defaultUrl;
+
+    // 🔒 VALIDASI (opsional tapi disarankan)
+    if (!url.includes("firebasestorage.googleapis.com")) {
+      return res.status(403).json({
+        error: "Hanya link Firebase yang diizinkan"
+      });
+    }
+
+    // fetch PDF dari Firebase
     const response = await fetch(url);
 
     if (!response.ok) {
-      return res.status(500).send("Gagal ambil PDF");
+      return res.status(500).json({
+        error: "Gagal mengambil PDF",
+        status: response.status
+      });
     }
 
+    // ambil data sebagai buffer
     const buffer = await response.arrayBuffer();
 
+    // header penting
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Access-Control-Allow-Origin", "*"); // 🔥 bypass CORS
+    res.setHeader("Access-Control-Allow-Origin", "*"); // bypass CORS
+    res.setHeader("Cache-Control", "public, max-age=86400"); // cache 1 hari
 
-    res.send(Buffer.from(buffer));
+    // kirim ke client
+    res.status(200).send(Buffer.from(buffer));
 
   } catch (err) {
-    res.status(500).send("Error: " + err.message);
+    res.status(500).json({
+      error: err.message
+    });
   }
 }
