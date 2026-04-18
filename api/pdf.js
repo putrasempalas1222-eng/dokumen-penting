@@ -2,7 +2,7 @@ export default async function handler(req, res) {
 
   const { link } = req.query;
 
-  // 🔥 REDIRECT KE VIEWER
+  // redirect ke viewer kalau dibuka di browser
   if (req.headers.accept && req.headers.accept.includes("text/html")) {
     return res.redirect(`/?link=${encodeURIComponent(link)}`);
   }
@@ -15,23 +15,21 @@ export default async function handler(req, res) {
 
     const url = decodeURIComponent(link);
 
-    // 🔒 optional: validasi hanya firebase
-    if (!url.includes("firebasestorage.googleapis.com")) {
-      return res.status(403).json({ error: "Hanya Firebase diizinkan" });
-    }
-
     const response = await fetch(url);
 
     if (!response.ok) {
       return res.status(500).json({
-        error: "Gagal fetch PDF",
+        error: "Gagal fetch file",
         status: response.status
       });
     }
 
     const buffer = await response.arrayBuffer();
 
-    res.setHeader("Content-Type", "application/pdf");
+    // 🔥 ambil content type asli
+    const contentType = response.headers.get("content-type") || "application/octet-stream";
+
+    res.setHeader("Content-Type", contentType);
     res.setHeader("Access-Control-Allow-Origin", "*");
 
     res.send(Buffer.from(buffer));
