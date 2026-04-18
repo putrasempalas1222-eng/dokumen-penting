@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Glass 3D Light Mode</title>
+<title>Viewer 3D Multi File</title>
 
 <style>
 *{
@@ -20,14 +20,12 @@ body{
     overflow:hidden;
     font-family:sans-serif;
 
-    /* 🌞 BACKGROUND TERANG */
     background:
         radial-gradient(circle at 20% 20%, rgba(0,150,255,0.15), transparent 40%),
         radial-gradient(circle at 80% 70%, rgba(0,255,200,0.15), transparent 40%),
         linear-gradient(135deg,#ffffff,#f3f6fb);
 }
 
-/* SCENE */
 .scene{
     width:100%;
     max-width:420px;
@@ -38,7 +36,6 @@ body{
     perspective:2000px;
 }
 
-/* CARD */
 .card{
     width:95%;
     height:90vh;
@@ -58,67 +55,43 @@ body{
     backface-visibility:hidden;
 }
 
-/* FRONT (LIGHT GLASS) */
+/* FRONT */
 .front{
     background:rgba(255,255,255,0.6);
     backdrop-filter:blur(18px);
-    -webkit-backdrop-filter:blur(18px);
-
     border:1px solid rgba(255,255,255,0.7);
-
-    box-shadow:
-        0 10px 40px rgba(0,0,0,0.15),
-        inset 0 0 20px rgba(255,255,255,0.6);
+    box-shadow:0 10px 40px rgba(0,0,0,0.15);
 }
 
-/* BACK (KOSONG) */
+/* BACK */
 .back{
     transform: rotateY(180deg);
-
     background:rgba(255,255,255,0.4);
     backdrop-filter:blur(25px);
-
-    border:1px solid rgba(255,255,255,0.6);
-
-    box-shadow:
-        inset 0 0 20px rgba(255,255,255,0.5);
 }
 
-/* 🔥 EDGE DEPTH (KETEBALAN CARD) */
+/* DEPTH */
 .card::before{
     content:"";
     position:absolute;
     inset:-3px;
     border-radius:26px;
-    background:linear-gradient(
-        to right,
-        rgba(0,0,0,0.15),
-        transparent 20%,
-        transparent 80%,
-        rgba(0,0,0,0.15)
-    );
+    background:linear-gradient(to right,rgba(0,0,0,0.15),transparent,rgba(0,0,0,0.15));
     opacity:.2;
     filter:blur(6px);
 }
 
-/* ✨ SIDE THICK EFFECT */
 .card::after{
     content:"";
     position:absolute;
     inset:0;
     border-radius:24px;
-    background:linear-gradient(
-        to bottom,
-        rgba(255,255,255,0.8),
-        transparent 40%,
-        transparent 60%,
-        rgba(0,0,0,0.1)
-    );
+    background:linear-gradient(to bottom,rgba(255,255,255,0.8),transparent,rgba(0,0,0,0.1));
     opacity:.4;
     pointer-events:none;
 }
 
-/* SCROLL */
+/* CONTAINER */
 #pdf-container{
     width:100%;
     height:100%;
@@ -142,9 +115,14 @@ canvas{
     margin-bottom:14px;
     border-radius:14px;
     background:#fff;
+    box-shadow:0 8px 20px rgba(0,0,0,0.15);
+}
 
-    box-shadow:
-        0 8px 20px rgba(0,0,0,0.15);
+/* IMAGE */
+img{
+    width:100%;
+    border-radius:14px;
+    box-shadow:0 8px 20px rgba(0,0,0,0.15);
 }
 
 /* SHADOW */
@@ -180,28 +158,56 @@ canvas{
 
 <script>
 
-    const params = new URLSearchParams(window.location.search);
-const pdfUrl = params.get("link");
+// =========================
+// 🔥 AMBIL PARAMETER LINK
+// =========================
+const params = new URLSearchParams(window.location.search);
+const fileUrl = params.get("link");
 
-if(!pdfUrl){
-    alert("Link PDF tidak ditemukan!");
+if(!fileUrl){
+    alert("Link tidak ditemukan!");
 }
 
+// =========================
+// API URL
+// =========================
+const apiUrl = "/api/pdf?link=" + encodeURIComponent(fileUrl);
 
-/* PDF CONFIG */
-const url = "/api/pdf?link=" + encodeURIComponent(pdfUrl);
+const container = document.getElementById("pdf-container");
 
-pdfjsLib.GlobalWorkerOptions.workerSrc =
-"https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+// =========================
+// 🔥 LOAD FILE (AUTO DETECT)
+// =========================
+async function loadFile(){
 
-/* LOAD PDF */
-async function loadPDF(){
-    const res = await fetch(url);
+    const res = await fetch(apiUrl);
     const blob = await res.blob();
+    const type = blob.type;
+
+    console.log("TYPE:", type);
+
+    if(type.includes("pdf")){
+        loadPDF(blob);
+    }
+    else if(type.startsWith("image")){
+        showImage(blob);
+    }
+    else{
+        container.innerHTML = "<p>File tidak didukung</p>";
+    }
+}
+
+// =========================
+// 📄 PDF VIEWER
+// =========================
+async function loadPDF(blob){
+
     const buffer = await blob.arrayBuffer();
 
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+    "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
     const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
-    const container = document.getElementById("pdf-container");
 
     async function renderPage(num){
         if(num > pdf.numPages) return;
@@ -228,10 +234,27 @@ async function loadPDF(){
     renderPage(1);
 }
 
-loadPDF();
+// =========================
+// 🖼 IMAGE VIEWER
+// =========================
+function showImage(blob){
 
-/* SCROLL DETECTOR */
-const container = document.getElementById("pdf-container");
+    const url = URL.createObjectURL(blob);
+
+    const img = document.createElement("img");
+    img.src = url;
+
+    container.appendChild(img);
+}
+
+// =========================
+// LOAD
+// =========================
+loadFile();
+
+// =========================
+// SCROLL DETECTOR
+// =========================
 let isScrolling = false;
 
 container.addEventListener("touchstart", () => {
@@ -250,9 +273,10 @@ container.addEventListener("scroll", () => {
     }, 120);
 });
 
-/* ROTATE */
+// =========================
+// 🌀 ROTATE 3D
+// =========================
 const card = document.getElementById("card");
-const shadow = document.getElementById("shadow");
 
 let isDown = false;
 let startX, startY;
@@ -263,13 +287,9 @@ card.addEventListener("mousedown",(e)=>{
     isDown = true;
     startX = e.clientX;
     startY = e.clientY;
-    card.style.cursor = "grabbing";
 });
 
-document.addEventListener("mouseup",()=>{
-    isDown = false;
-    card.style.cursor = "grab";
-});
+document.addEventListener("mouseup",()=> isDown=false);
 
 document.addEventListener("mousemove",(e)=>{
     if(!isDown || isScrolling) return;
@@ -283,9 +303,13 @@ document.addEventListener("mousemove",(e)=>{
     startX = e.clientX;
     startY = e.clientY;
 
-    updateTransform();
+    card.style.transform = `
+        rotateX(${rotX}deg)
+        rotateY(${rotY}deg)
+    `;
 });
 
+/* TOUCH */
 document.addEventListener("touchstart",(e)=>{
     isDown = true;
     startX = e.touches[0].clientX;
@@ -306,16 +330,11 @@ document.addEventListener("touchmove",(e)=>{
     startX = e.touches[0].clientX;
     startY = e.touches[0].clientY;
 
-    updateTransform();
-}, { passive:true });
-
-function updateTransform(){
     card.style.transform = `
         rotateX(${rotX}deg)
         rotateY(${rotY}deg)
     `;
-    shadow.style.transform = `scale(${1 + Math.abs(rotY)/40})`;
-}
+}, { passive:true });
 
 </script>
 
