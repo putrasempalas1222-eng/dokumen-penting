@@ -1,40 +1,58 @@
 export default async function handler(req, res) {
   try {
-    // ambil parameter link
-    const { link } = req.query;
 
-    // fallback kalau tidak ada link → pakai default
-    const defaultUrl = "";
+    let { link } = req.query;
 
-    const url = link ? decodeURIComponent(link) : defaultUrl;
-
-    // 🔒 VALIDASI (opsional tapi disarankan)
-    if (!url.includes("firebasestorage.googleapis.com")) {
-      return res.status(403).json({
-        error: "Hanya link Firebase yang diizinkan"
-      });
+    if (!link) {
+      return res.status(400).json({ error: "Link tidak ada" });
     }
 
-    // fetch PDF dari Firebase
-    const response = await fetch(url);
+    link = decodeURIComponent(link);
+
+    /* =========================
+       🔥 AMBIL BAGIAN PENTING
+    ========================= */
+
+    // ambil setelah "/b/"
+    const match = link.match(/\/b\/(.*?)\/o\/(.*?)\?/);
+
+    if (!match) {
+      return res.status(400).json({ error: "Format link tidak valid" });
+    }
+
+    const bucket = match[1]; // play-integrity-2adpr7x4a8xhyex.firebasestorage.app
+    const filePath = match[2]; // surat_penugasan_internal...
+
+    // decode nama file
+    const decodedPath = decodeURIComponent(filePath);
+
+    /* =========================
+       🔥 BANGUN ULANG URL
+    ========================= */
+
+    const cleanUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(decodedPath)}?alt=media`;
+
+    console.log("CLEAN URL:", cleanUrl);
+
+    /* =========================
+       FETCH PDF
+    ========================= */
+
+    const response = await fetch(cleanUrl);
 
     if (!response.ok) {
       return res.status(500).json({
-        error: "Gagal mengambil PDF",
+        error: "Gagal fetch PDF",
         status: response.status
       });
     }
 
-    // ambil data sebagai buffer
     const buffer = await response.arrayBuffer();
 
-    // header penting
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Access-Control-Allow-Origin", "*"); // bypass CORS
-    res.setHeader("Cache-Control", "public, max-age=86400"); // cache 1 hari
+    res.setHeader("Access-Control-Allow-Origin", "*");
 
-    // kirim ke client
-    res.status(200).send(Buffer.from(buffer));
+    res.send(Buffer.from(buffer));
 
   } catch (err) {
     res.status(500).json({
