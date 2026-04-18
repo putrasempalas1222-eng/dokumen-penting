@@ -2,7 +2,7 @@ export default async function handler(req, res) {
 
   const { link } = req.query;
 
-  // 🔥 REDIRECT KE VIEWER JIKA DIBUKA DI BROWSER
+  // 🔥 REDIRECT KE VIEWER
   if (req.headers.accept && req.headers.accept.includes("text/html")) {
     return res.redirect(`/?link=${encodeURIComponent(link)}`);
   }
@@ -13,52 +13,14 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Link tidak ada" });
     }
 
-    let decoded = decodeURIComponent(link);
+    const url = decodeURIComponent(link);
 
-    let bucket, filePath;
-
-    /* =========================
-       FORMAT SHORT
-       contoh:
-       play-integrity...app/o/file.pdf
-    ========================= */
-    if (decoded.includes(".firebasestorage.app/o/")) {
-
-      const match = decoded.match(/^(.*?)\/o\/(.*)$/);
-
-      if (!match) {
-        return res.status(400).json({ error: "Format short link tidak valid" });
-      }
-
-      bucket = match[1];
-      filePath = match[2];
+    // 🔒 optional: validasi hanya firebase
+    if (!url.includes("firebasestorage.googleapis.com")) {
+      return res.status(403).json({ error: "Hanya Firebase diizinkan" });
     }
 
-    /* =========================
-       FORMAT FULL FIREBASE
-    ========================= */
-    else if (decoded.includes("/v0/b/")) {
-
-      const match = decoded.match(/\/b\/(.*?)\/o\/(.*?)\?/);
-
-      if (!match) {
-        return res.status(400).json({ error: "Format Firebase tidak valid" });
-      }
-
-      bucket = match[1];
-      filePath = decodeURIComponent(match[2]);
-    }
-
-    else {
-      return res.status(400).json({ error: "Format link tidak dikenali" });
-    }
-
-    /* =========================
-       BUILD URL FINAL
-    ========================= */
-    const finalUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(filePath)}?alt=media`;
-
-    const response = await fetch(finalUrl);
+    const response = await fetch(url);
 
     if (!response.ok) {
       return res.status(500).json({
