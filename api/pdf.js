@@ -6,6 +6,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Link tidak ada" });
     }
 
+    // decode URL Firebase
     const url = decodeURIComponent(raw);
 
     if (!url.startsWith("http")) {
@@ -26,8 +27,8 @@ export default async function handler(req, res) {
       response.headers.get("content-type") || "application/octet-stream";
 
     res.setHeader("Content-Type", contentType);
-    res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Content-Disposition", "inline");
+    res.setHeader("Access-Control-Allow-Origin", "*");
 
     res.send(Buffer.from(buffer));
   } catch (err) {
