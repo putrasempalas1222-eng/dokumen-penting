@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>3D Frame Viewer FIX</title>
+<title>3D Frame Viewer FINAL</title>
 
 <style>
 *{
@@ -31,11 +31,9 @@ body{
     width:100%;
     max-width:420px;
     height:100dvh;
-
     display:flex;
     justify-content:center;
     align-items:center;
-
     perspective:2000px;
     padding:12px;
 }
@@ -120,6 +118,7 @@ body{
     width:100%;
     height:100%;
     padding:8px;
+    touch-action: pan-y; /* 🔥 FIX scroll HP */
 }
 
 /* PDF MODE */
@@ -160,7 +159,7 @@ img{
     border-radius:12px;
 }
 
-/* RESPONSIVE EXTRA */
+/* RESPONSIVE */
 @media (max-width:480px){
     .card{
         height:80dvh;
@@ -251,16 +250,24 @@ function showImage(blob){
     container.appendChild(img);
 }
 
-// ROTATE 3D
+// =========================
+// ROTATE FIX (SCROLL SAFE)
+// =========================
 const card = document.getElementById("card");
 
 let isDown=false,startX,startY,rotX=0,rotY=0;
+
+function isScrollingTarget(target){
+    return target.closest("#pdf-container");
+}
 
 function clamp(value,min,max){
     return Math.max(min,Math.min(max,value));
 }
 
+// DESKTOP
 card.addEventListener("mousedown",(e)=>{
+    if(isScrollingTarget(e.target)) return;
     isDown=true;
     startX=e.clientX;
     startY=e.clientY;
@@ -286,8 +293,13 @@ document.addEventListener("mousemove",(e)=>{
     card.style.transform=`rotateX(${rotX}deg) rotateY(${rotY}deg)`;
 });
 
-// TOUCH
-document.addEventListener("touchstart",(e)=>{
+// MOBILE FIX
+card.addEventListener("touchstart",(e)=>{
+    if(isScrollingTarget(e.target)){
+        isDown=false;
+        return;
+    }
+
     isDown=true;
     startX=e.touches[0].clientX;
     startY=e.touches[0].clientY;
@@ -311,7 +323,7 @@ document.addEventListener("touchmove",(e)=>{
     startY=e.touches[0].clientY;
 
     card.style.transform=`rotateX(${rotX}deg) rotateY(${rotY}deg)`;
-});
+}, { passive:true });
 
 // START
 loadFile();
