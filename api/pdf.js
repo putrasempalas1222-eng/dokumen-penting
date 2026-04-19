@@ -1,15 +1,13 @@
 export default async function handler(req, res) {
   try {
-    const { link } = req.query;
+    const raw = req.url.split("link=")[1];
 
-    if (!link) {
+    if (!raw) {
       return res.status(400).json({ error: "Link tidak ada" });
     }
 
-    // 🔥 decode sekali saja
-    const url = decodeURIComponent(link);
+    const url = decodeURIComponent(raw);
 
-    // 🔥 validasi url
     if (!url.startsWith("http")) {
       return res.status(400).json({ error: "URL tidak valid" });
     }
@@ -24,20 +22,15 @@ export default async function handler(req, res) {
 
     const buffer = await response.arrayBuffer();
 
-    // 🔥 ambil tipe file
     const contentType =
       response.headers.get("content-type") || "application/octet-stream";
 
     res.setHeader("Content-Type", contentType);
     res.setHeader("Access-Control-Allow-Origin", "*");
-
-    // 🔥 penting untuk PDF / image agar bisa dibuka inline
     res.setHeader("Content-Disposition", "inline");
 
     res.send(Buffer.from(buffer));
   } catch (err) {
-    res.status(500).json({
-      error: err.message,
-    });
+    res.status(500).json({ error: err.message });
   }
 }
