@@ -1,20 +1,33 @@
 export default async function handler(req, res) {
   try {
-    const url = "https://firebasestorage.googleapis.com/v0/b/play-integrity-2adpr7x4a8xhyex.firebasestorage.app/o/surat_penugasan_internal_M.%20Putra%20Ramadhani_162023023.pdf.pdf?alt=media&token=6821921c-b615-4b63-9b24-f895ccf67741";
+    const { link } = req.query;
 
-    const response = await fetch(url);
+    if (!link) {
+      return res.status(400).send("Link tidak ada");
+    }
+
+    const response = await fetch(link);
 
     if (!response.ok) {
-      return res.status(500).send("Gagal ambil PDF");
+      return res.status(500).send("Gagal ambil file");
+    }
+
+    const contentType = response.headers.get("content-type") || "";
+
+    // 🔥 FILTER HANYA PDF & JPG
+    if (
+      !contentType.includes("pdf") &&
+      !contentType.includes("jpeg") &&
+      !contentType.includes("jpg")
+    ) {
+      return res.status(400).send("Hanya support PDF & JPG");
     }
 
     const buffer = await response.arrayBuffer();
 
-    // 🔥 HEADER WAJIB
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", "inline");
+    res.setHeader("Content-Type", contentType);
     res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("Content-Disposition", "inline");
 
     res.status(200).send(Buffer.from(buffer));
 
